@@ -58,11 +58,10 @@ The repository is structured as follows:
 │
 ├── challenges/
 │   ├── README.md                    # Challenge overview & scoring protocol
-│   ├── C1-route-planner/            # Heating installer routing web app
-│   ├── C2-invoice-extractor/        # PDF invoice extraction API
-│   ├── C3-job-scheduler/            # Multi-tenant scheduling dashboard
-│   ├── C4-code-review-bot/          # GitHub PR review automation
-│   └── C5-anomaly-detector/         # Time-series anomaly microservice
+│   ├── C1-invoice-extractor/        # PDF invoice extraction API
+│   ├── C2-code-review-bot/          # GitHub PR review automation
+│   ├── C3-anomaly-detector/         # Time-series anomaly microservice
+│   └── C4-job-scheduler/            # Multi-tenant scheduling dashboard
 │
 ├── scoring/
 │   ├── cas_scorer.py                # Composite Agent Score calculator
