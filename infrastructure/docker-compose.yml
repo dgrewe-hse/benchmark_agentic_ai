@@ -1,0 +1,146 @@
+services:
+
+  # ── vLLM Inference Server ──────────────────────────────────────────────────
+  # Model is NOT started here — use scripts/model_swap.sh to load models.
+  # This service provides the API endpoint; model loading is dynamic.
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: vllm
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - HF_HOME=/data/models
+      - VLLM_LOGGING_LEVEL=INFO
+    volumes:
+      - /data/models:/data/models
+      - ./vllm/configs:/configs:ro
+    ports:
+      - "8000:8000"
+    command: ["--host", "0.0.0.0", "--port", "8000"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ── MLflow Tracking Server ─────────────────────────────────────────────────
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: mlflow
+    environment:
+      - MLFLOW_BACKEND_STORE_URI=sqlite:///mlflow/mlflow.db
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
+    volumes:
+      - /data/mlflow:/mlflow
+    ports:
+      - "5000:5000"
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:///mlflow/mlflow.db
+      --default-artifact-root /mlflow/artifacts
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── DCGM Exporter (GPU metrics → Prometheus) ───────────────────────────────
+  dcgm-exporter:
+    image: nvcr.io/nvidia/k8s/dcgm-exporter:latest
+    container_name: dcgm-exporter
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    cap_add:
+      - SYS_ADMIN
+    ports:
+      - "9400:9400"
+    restart: unless-stopped
+    # DGX OS has DCGM pre-installed — this container exposes metrics via HTTP
+
+  # ── Prometheus ────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=90d'    # Keep 90 days of metrics
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Grafana ───────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-changeme}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/dashboards/overview.json
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # ── OpenHands (Agent Runtime) ──────────────────────────────────────────────
+  openhands:
+    image: ghcr.io/all-hands-ai/openhands:main
+    container_name: openhands
+    environment:
+      - LLM_BASE_URL=http://vllm:8000/v1
+      - LLM_API_KEY=not-needed      # vLLM doesn't require auth by default
+      - SANDBOX_TYPE=local
+      - WORKSPACE_BASE=/workspace
+    volumes:
+      - /data/benchmark-results/challenges:/workspace
+      - /var/run/docker.sock:/var/run/docker.sock   # For Docker-in-Docker sandboxing
+    ports:
+      - "3001:3000"
+    depends_on:
+      vllm:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Results Database ───────────────────────────────────────────────────────
+  # SQLite served via a lightweight API for easy querying from notebooks
+  results-api:
+    image: python:3.11-slim
+    container_name: results-api
+    working_dir: /app
+    volumes:
+      - /data/benchmark-results:/data
+      - ./scoring:/app/scoring:ro
+    ports:
+      - "8001:8001"
+    command: >
+      bash -c "pip install flask -q &&
+               python scoring/results_db.py --serve --port 8001"
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  default:
+    name: benchmark-lab

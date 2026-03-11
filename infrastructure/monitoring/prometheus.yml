@@ -1,0 +1,32 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    lab: 'dgx-benchmark-lab'
+
+scrape_configs:
+
+  - job_name: 'dcgm'
+    static_configs:
+      - targets: ['dcgm-exporter:9400']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'dgx-spark'
+
+  - job_name: 'vllm'
+    static_configs:
+      - targets: ['vllm:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 5s    # Higher frequency during active inference
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'node'
+    # DGX OS system metrics (CPU, RAM, disk, network)
+    static_configs:
+      - targets: ['host.docker.internal:9100']
+    # Requires node_exporter running on host:
+    # docker run -d --net="host" --pid="host" -v "/:/host:ro" prom/node-exporter
