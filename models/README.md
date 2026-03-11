@@ -8,7 +8,6 @@ This directory manages the model registry and quantization tooling for the bench
 |------|---------|
 | `registry.yaml` | Pinned model list with HF repos, revision SHAs, vLLM config |
 | `select_models.py` | Interactive script to populate `registry.yaml` |
-| `quantize.sh` | Batch fp8/AWQ quantization via llm-compressor |
 
 ---
 
