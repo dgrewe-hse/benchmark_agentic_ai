@@ -1,0 +1,38 @@
+# Model Registry
+# All models must be pinned to an exact HuggingFace Hub revision SHA before benchmarking.
+# Use: huggingface-cli api <repo_id> --method GET | jq .sha
+# to get the current HEAD SHA, then pin it here.
+#
+# NEVER benchmark a model without a revision SHA — this breaks reproducibility.
+
+models:
+
+  # ── SMALL TIER (fp16, up to 3 concurrent) ──────────────────────────────────
+
+  - id: phi-4-mini
+    hf_repo: microsoft/Phi-4-mini-instruct
+    revision: null          # FILL IN
+    family: phi4
+    tier: small
+    params_b: 3.8
+    precision: fp16
+    vram_gb_estimate: 8
+    context_length: 131072
+    vllm_extra_args: "--gpu-memory-utilization 0.80 --max-model-len 32768"
+    notes: "Smallest model; efficiency baseline"
+
+  # ── REFERENCE (API — judge + baseline only) ────────────────────────────────
+
+  - id: gpt-5.2
+    provider: openai
+    model_string: gpt-4o-2024-11-20   # Pin to dated version
+    tier: reference
+    role: [judge, baseline]
+    notes: "Primary judge. Always use dated model string, never 'gpt-4o' alias."
+
+  - id: claude-4-6-sonnet
+    provider: anthropic
+    model_string: claude-4-6-sonnet-20260307   # Pin to dated version
+    tier: reference
+    role: [judge]
+    notes: "Secondary judge for ensemble scoring. Average with GPT-4o."
