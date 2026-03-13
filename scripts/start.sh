@@ -37,6 +37,15 @@ source .venv/bin/activate
 info "Pulling latest Docker images (this may take several minutes)..."
 docker compose -f "$COMPOSE_FILE" pull
 
+# ── Evict stray containers that would conflict with compose ───────────────────
+for NAME in vllm; do
+  if docker inspect "$NAME" &>/dev/null; then
+    warn "Removing stray container '$NAME' (not managed by compose)..."
+    docker stop "$NAME" 2>/dev/null || true
+    docker rm -f "$NAME" 2>/dev/null || true
+  fi
+done
+
 # ── Start infrastructure stack ────────────────────────────────────────────────
 info "Starting infrastructure stack..."
 docker compose -f "$COMPOSE_FILE" up -d
@@ -47,7 +56,11 @@ sleep 30
 
 # ── Initialise results database ───────────────────────────────────────────────
 info "Initialising results database..."
-python3 scoring/results_db.py --init
+if [[ -f scoring/results_db.py ]]; then
+  python3 scoring/results_db.py --init
+else
+  warn "scoring/results_db.py not found — skipping DB init (commit scoring/ and re-run to fix)"
+fi
 
 # ── Healthcheck ───────────────────────────────────────────────────────────────
 info "Running healthcheck..."
