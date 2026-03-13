@@ -9,9 +9,33 @@ models:
 
   # ── SMALL TIER (fp16, up to 3 concurrent) ──────────────────────────────────
 
+  - id: qwen2.5-coder-1.5b
+    hf_repo: Qwen/Qwen2.5-Coder-1.5B-Instruct
+    revision: 2e1fd397ee46e1388853d2af2c993145b0f1098a
+    family: qwen2.5
+    tier: small
+    params_b: 1.5
+    precision: fp16
+    vram_gb_estimate: 3
+    context_length: 131072
+    vllm_extra_args: "--gpu-memory-utilization 0.70 --max-model-len 32768"
+    notes: "Smallest coding model; fast download (~3GB); sanity-check baseline"
+
+  - id: llama-3.2-3b
+    hf_repo: meta-llama/Llama-3.2-3B-Instruct
+    revision: 0cb88a4f764b7a12671c53f0838cd831a0843b95
+    family: llama3
+    tier: small
+    params_b: 3.0
+    precision: fp16
+    vram_gb_estimate: 6
+    context_length: 131072
+    vllm_extra_args: "--gpu-memory-utilization 0.75 --max-model-len 32768"
+    notes: "Requires gated HF access (accept license at huggingface.co/meta-llama)"
+
   - id: phi-4-mini
     hf_repo: microsoft/Phi-4-mini-instruct
-    revision: null          # FILL IN
+    revision: cfbefacb99257ffa30c83adab238a50856ac3083
     family: phi4
     tier: small
     params_b: 3.8
@@ -20,6 +44,40 @@ models:
     context_length: 131072
     vllm_extra_args: "--gpu-memory-utilization 0.80 --max-model-len 32768"
     notes: "Smallest model; efficiency baseline"
+
+  # ── XL TIER — exploratory, not primary benchmark ──────────────────────────
+
+  - id: nemotron-3-super-120b
+    hf_repo: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-FP8
+    revision: 1408abd63ba6ba1c37a78b94d332dac35da45370
+    family: nemotron
+    tier: xl
+    params_b: 120           # 12B active (LatentMoE: Mamba-2 + MoE + Attention)
+    architecture: moe
+    precision: fp8
+    cuda_sm_min: "9.0"     # FP8 tensor cores: Hopper+ (SM 9.0). DGX Spark is SM 12.1 — OK.
+    vram_gb_estimate: 120
+    context_length: 131072
+    vllm_extra_args: >-
+      --dtype auto
+      --kv-cache-dtype fp8
+      --gpu-memory-utilization 0.95
+      --max-model-len 4096
+      --max-num-seqs 16
+      --trust-remote-code
+      --enable-chunked-prefill
+      --async-scheduling
+      --swap-space 0
+      --attention-backend TRITON_ATTN
+      --served-model-name nvidia/nemotron-3-super
+      --enable-auto-tool-choice
+      --tool-call-parser qwen3_coder
+      --reasoning-parser-plugin /data/models/snapshots/nemotron-3-super-120b/super_v3_reasoning_parser.py
+      --reasoning-parser super_v3
+    notes: >-
+      LatentMoE: 120B total / 12B active, already FP8. HF docs recommend tp=2 (2x H100)
+      but DGX Spark is single GB10 — tp=1 only. Very tight on 128GB unified memory, may OOM.
+      Snapshot-downloaded to /data/models/snapshots/nemotron-3-super-120b for reasoning plugin access.
 
   # ── REFERENCE (API — judge + baseline only) ────────────────────────────────
 
