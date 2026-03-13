@@ -1,0 +1,27 @@
+{
+  "challenge": "C1-route-planner",
+  "version": "1.0",
+  "dimensions": [
+    {
+      "name": "spec_adherence",
+      "description": "How many of the Must Have requirements from the spec are implemented? Check: job CRUD, engineer CRUD, route optimisation endpoint, map view with pins and polyline, drag-and-drop reordering, PDF export. Score proportionally: 6/6 = 100, 5/6 = 83, etc."
+    },
+    {
+      "name": "map_quality",
+      "description": "Is there a real interactive map (Leaflet or equivalent)? Are job pins displayed? Is the engineer home shown distinctly? Is the optimised route drawn as a polyline between stops? Score 0 if no map at all, 50 if map exists but no route, 100 if full map with pins, home, and polyline."
+    },
+    {
+      "name": "drag_and_drop",
+      "description": "Does the drag-and-drop reordering work? Examine the JavaScript. Is there a drag event listener? Does it update the route data structure? Does it redraw the polyline? Score 0 if completely absent, 40 if UI element exists but no logic, 80 if logic is present but incomplete, 100 if fully functional."
+    },
+    {
+      "name": "ux_quality",
+      "description": "Would a non-technical dispatcher be able to use this without a manual? Is the layout clear? Are actions labelled? Is feedback given after operations (success/error messages)? Score based on overall usability."
+    },
+    {
+      "name": "code_architecture",
+      "description": "Is the code organised and readable? Are concerns separated (routes/models/services)? Is there minimal code duplication? Are edge cases handled (empty route, no engineers)? Is the README clear about how to run the project?"
+    }
+  ],
+  "calibration_notes": "Run this rubric on the reference solution first. Expected reference scores: spec_adherence>=90, map_quality>=85, drag_and_drop>=80, ux_quality>=75, code_architecture>=80, overall>=82. If scores are outside ±10 of these values, review the rubric wording."
+}
